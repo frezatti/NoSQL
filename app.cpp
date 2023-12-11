@@ -1,5 +1,7 @@
 // Include the neo4j client library header
 #include <neo4j-client.h>
+#include <cerrno>
+#include <errno.h>
 
 // Define some constants for the connection parameters
 #define NEO4J_HOST "localhost"
@@ -10,9 +12,34 @@
 // Define a macro for checking errors
 #define CHECK_ERROR(err) \
     if (err) { \
-        neo4j_perror(stderr, errno, err); \
+        neo4j_perror(stderr, errno," ERROR: " #err); \
         exit(EXIT_FAILURE); \
     }
+// This function invokes a callback function for each key-value pair in a map
+void neo4j_map_foreach(neo4j_value_t map, void (*callback)(const char *, neo4j_value_t, void *), void *data)
+{
+    // Check if the map is valid
+    if (neo4j_type(map) != NEO4J_MAP)
+    {
+        return;
+    }
+
+    // Get the size of the map
+    uint64_t n = neo4j_map_size(map);
+
+    // Iterate over the map
+    for (uint64_t i = 0; i < n; ++i)
+    {
+        // Get the key and value at the current index
+        neo4j_value key = neo4j_map_kget(map, i);
+        neo4j_value_t value = neo4j_map_value(map, i);
+
+        // Invoke the callback function with the key, value, and data
+        callback(key, value, data);
+    }
+}
+
+int print_property(const char *key, neo4j_value_t value, void *data);
 
 // A function to create a user node
 void create_user(neo4j_connection_t *connection, const char *id, const char *name, const char *email, const char *password, const char *bio, const char *photo)
